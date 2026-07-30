@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gaming NID Pro v3.0 - Ultimate Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="glass-container">
+            <div class="header-title">
+                <h2>⚡ GAMING NID PRO <span class="version">v3.0</span> ⚡</h2>
+                <p>Generate your ultimate eSports verified ID card</p>
+            </div>
+
+            <form method="POST" class="gaming-form" id="cardForm">
+                <div class="input-group">
+                    <input type="text" name="name" placeholder=" " required>
+                    <label>পূর্ণ নাম (Real Name)</label>
+                </div>
+                <div class="input-group">
+                    <input type="text" name="nickname" placeholder=" " required>
+                    <label>ইন-গেম নাম (IGN / Nickname)</label>
+                </div>
+                <div class="input-group">
+                    <input type="text" name="uid" placeholder=" " required>
+                    <label>গেম ইউআইডি (UID)</label>
+                </div>
+                <div class="input-grid">
+                    <div class="input-group">
+                        <input type="text" name="level" placeholder=" " required>
+                        <label>লেভেল (Level)</label>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" name="region" placeholder=" " required>
+                        <label>রিজিওন (Region)</label>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <input type="text" name="badge" placeholder=" " required>
+                    <label>র‍্যাংক / ব্যাজ (e.g. Heroic)</label>
+                </div>
+
+                <div class="file-upload-box">
+                    <label class="file-title">🎮 প্রোফাইল ছবি সিলেক্ট করুন</label>
+                    <input type="file" id="imageInput" accept="image/*" required>
+                    <input type="hidden" name="photo_base64" id="photoBase64">
+                </div>
+
+                <button type="submit" class="generate-btn">
+                    <span>জেনারেট প্রিমিয়াম কার্ড</span>
+                </button>
+            </form>
+
+            {% if card_data %}
+            <div class="gaming-card">
+                <div class="card-glow"></div>
+                <div class="card-top-bar">
+                    <span class="republic-text">ESPORTS REPUBLIC ID</span>
+                    <span class="verified-badge">✓ ELITE PRO</span>
+                </div>
+                <div class="card-main-content">
+                    <div class="avatar-frame">
+                        <img src="{{ card_data.photo }}" alt="Avatar" onerror="this.src='https://via.placeholder.com/150/0f172a/38bdf8?text=NO+IMG'">
+                        <div class="level-tag">LVL {{ card_data.level }}</div>
+                    </div>
+                    <div class="details-box">
+                        <h3 class="ign-title">{{ card_data.nickname }}</h3>
+                        <div class="info-row"><span>নাম:</span> <strong>{{ card_data.name }}</strong></div>
+                        <div class="info-row"><span>UID:</span> <code class="uid-code">{{ card_data.uid }}</code></div>
+                        <div class="info-row"><span>রিজিওন:</span> <strong>{{ card_data.region }}</strong></div>
+                        <div class="info-row"><span>র‍্যাংক:</span> <span class="rank-highlight">{{ card_data.badge }}</span></div>
+                    </div>
+                </div>
+                <div class="card-footer-strip"></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const photoBase64 = document.getElementById('photoBase64');
+        const cardForm = document.getElementById('cardForm');
+        const submitBtn = cardForm.querySelector('.generate-btn');
+        const submitBtnText = submitBtn.querySelector('span');
+
+        // ছবিকে ক্যানভাসে এঁকে ছোট সাইজে (max 600px) এবং JPEG কোয়ালিটি কমিয়ে
+        // base64 বানানো হয় - এতে মোবাইল ক্যামেরার বড় (কয়েক MB) ছবি হলেও
+        // পাঠানোর সাইজ অনেক ছোট থাকে এবং লো-এন্ড ডিভাইসে সার্ভার ক্র্যাশ করে না।
+        function resizeAndEncode(file, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const maxDim = 600;
+                    let w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                        else { w = Math.round(w * maxDim / h); h = maxDim; }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    callback(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.onerror = function() { callback(''); };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() { callback(''); };
+            reader.readAsDataURL(file);
+        }
+
+        // ছবি সিলেক্ট করার সাথে সাথে রিসাইজ করে হিডেন ইনপুটে বসিয়ে দেওয়া
+        imageInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            photoBase64.value = '';
+            if (file) {
+                resizeAndEncode(file, function(dataUrl) {
+                    photoBase64.value = dataUrl;
+                });
+            }
+        });
+
+        // ছবি প্রসেসিং শেষ না হওয়া পর্যন্ত ফর্ম সাবমিট আটকে রাখা,
+        // যাতে বড় সাইজের ছবি হলেও কার্ডে ছবি ছাড়া সাবমিট না হয়ে যায়
+        cardForm.addEventListener('submit', function(event) {
+            if (imageInput.files.length > 0 && !photoBase64.value) {
+                event.preventDefault();
+                submitBtn.disabled = true;
+                submitBtnText.textContent = 'ছবি প্রসেস হচ্ছে...';
+
+                resizeAndEncode(imageInput.files[0], function(dataUrl) {
+                    photoBase64.value = dataUrl;
+                    submitBtn.disabled = false;
+                    submitBtnText.textContent = 'জেনারেট প্রিমিয়াম কার্ড';
+                    cardForm.submit();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
